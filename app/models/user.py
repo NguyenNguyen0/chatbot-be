@@ -1,12 +1,11 @@
 from pydantic import BaseModel
 
 
-class ChatRequest(BaseModel):
+class User(BaseModel):
     user_id: str
-    message: str
-    model: str = "mistral"
-
-
-class ChatResponse(BaseModel):
-    chat_id: str
-    response: str
+    name: str
+    email: str
+    password: str
+    is_active: bool = True
+    last_login: str = None
+    created_at: str = None
