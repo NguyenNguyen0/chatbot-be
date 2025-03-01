@@ -10,7 +10,7 @@ app = FastAPI()
 
 @app.get("/")
 def read_root():
-    return {"Hello": "World"}
+    return {"FastApi": "Hello World"}
 
 
 app.include_router(chat_router, prefix="/chat", tags=["chat"])

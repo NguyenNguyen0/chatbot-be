@@ -4,12 +4,13 @@ from fastapi import HTTPException
 
 from app.database import chats_collection
 from app.models.chat import ChatMessage, ChatResponse, ChatSection
+from app.utils import generate_id
 from app.config import DEFAULT_MODEL
 
 
 def chat_with_ollama(
     user_id: str,
-    chat_id: str | None,
+    chat_id: str,
     messages: List[ChatMessage],
     model: str = DEFAULT_MODEL,
 ) -> ChatResponse:
@@ -33,7 +34,7 @@ def chat_with_ollama(
         chats_collection.insert_one(
             {
                 "user_id": user_id,
-                "chat_id": chat_id,  # this will must generate a new chat_id
+                "chat_id": generate_id(),  # this will must generate a new chat_id
                 "messages": messages_dict,
                 "model": model,
             }
