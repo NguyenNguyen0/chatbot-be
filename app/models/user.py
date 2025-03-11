@@ -33,3 +33,8 @@ class UserLoginRequest(BaseModel):
         json_schema_extra = {
             "example": {"name": "john_doe", "password": "secure_password123"}
         }
+
+class UserLoginResponse(BaseModel):
+    user_id: str
+    access_token: str
+    token_type: str = 'bearer'

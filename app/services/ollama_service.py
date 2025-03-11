@@ -1,6 +1,6 @@
 from typing import List
 import ollama
-from fastapi import HTTPException
+from fastapi import HTTPException, status
 
 from app.database import chats_collection
 from app.models.chat import ChatMessage, ChatResponse, ChatSection
@@ -17,6 +17,9 @@ def chat_with_ollama(
     messages_dict = [
         msg.model_dump() if isinstance(msg, ChatMessage) else msg for msg in messages
     ]
+
+    if messages_dict[-1]['role'] != "user":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Last message must be from the user")
 
     response = ollama.chat(model=model, messages=messages_dict)
     ai_response = response["message"]["content"]
@@ -40,7 +43,7 @@ def chat_with_ollama(
             }
         )
 
-    return {"chat_id": str(chat_id), "response": ai_response}
+    return ChatResponse(chat_id=str(chat_id), response=ai_response)
 
 
 def get_chat_section(user_id: str, chat_id: str) -> ChatSection:
@@ -49,4 +52,4 @@ def get_chat_section(user_id: str, chat_id: str) -> ChatSection:
     if chat_message:
         return chat_message
     else:
-        raise HTTPException(status_code=404, detail="Chat not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")

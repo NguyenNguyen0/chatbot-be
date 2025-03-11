@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from app.config import SECRET_KEY, ALGORITHM

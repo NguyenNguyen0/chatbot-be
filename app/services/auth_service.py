@@ -3,8 +3,8 @@ from passlib.context import CryptContext
 import jwt
 from app.database import users_collection
 from fastapi import HTTPException
-from bson import ObjectId
 from app.config import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
+from app.models.user import UserLoginResponse
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -38,10 +38,10 @@ def register_user(username: str, password: str):
     return {"message": "User registered successfully", "user_id": str(user_id)}
 
 
-def login_user(username: str, password: str):
+def login_user(username: str, password: str) -> UserLoginResponse:
     user = users_collection.find_one({"username": username})
     if not user or not verify_password(password, user["password"]):
         raise HTTPException(status_code=401, detail="Invalid username or password")
 
     access_token = create_access_token({"user_id": str(user["_id"])})
-    return {"access_token": access_token, "token_type": "bearer"}
+    return UserLoginResponse(user_id=str(user["_id"]), access_token=access_token)
