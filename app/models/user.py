@@ -12,26 +12,26 @@ class User(BaseModel):
 
 
 class UserRegisterRequest(BaseModel):
-    name: str = Field(..., description="Username for registration", example="john_doe")
+    name: str = Field(..., description="Username for registration", example="abc")
     password: str = Field(
-        ..., description="User password", example="secure_password123"
+        ..., description="User password", example="abc123"
     )
 
     class Config:
         json_schema_extra = {
-            "example": {"name": "john_doe", "password": "secure_password123"}
+            "example": {"name": "abc", "password": "abc123"}
         }
 
 
 class UserLoginRequest(BaseModel):
-    name: str = Field(..., description="Username for login", example="john_doe")
+    name: str = Field(..., description="Username for login", example="abc")
     password: str = Field(
-        ..., description="User password", example="secure_password123"
+        ..., description="User password", example="abc123"
     )
 
     class Config:
         json_schema_extra = {
-            "example": {"name": "john_doe", "password": "secure_password123"}
+            "example": {"name": "abc", "password": "abc123"}
         }
 
 class UserLoginResponse(BaseModel):
