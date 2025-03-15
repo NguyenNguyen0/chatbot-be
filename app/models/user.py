@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 class User(BaseModel):
     user_id: str
-    name: str
+    username: str
     email: str
     password: str
     is_active: bool = True
@@ -12,7 +12,7 @@ class User(BaseModel):
 
 
 class UserRegisterRequest(BaseModel):
-    name: str = Field(..., description="Username for registration", example="abc")
+    username: str = Field(..., description="Username for registration", example="abc")
     password: str = Field(
         ..., description="User password", example="abc123"
     )
@@ -24,14 +24,14 @@ class UserRegisterRequest(BaseModel):
 
 
 class UserLoginRequest(BaseModel):
-    name: str = Field(..., description="Username for login", example="abc")
+    username: str = Field(..., description="Username for login", example="abc")
     password: str = Field(
         ..., description="User password", example="abc123"
     )
 
     class Config:
         json_schema_extra = {
-            "example": {"name": "abc", "password": "abc123"}
+            "example": {"username": "abc", "password": "abc123"}
         }
 
 class UserLoginResponse(BaseModel):

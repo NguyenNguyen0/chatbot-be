@@ -10,10 +10,10 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
     "/register",
     status_code=status.HTTP_201_CREATED,
     summary="Register a new user",
-    description="Register a new user with a unique name and a password",
+    description="Register a new user with a unique username and a password",
 )
 def register(user_request: UserRegisterRequest):
-    return register_user(user_request.name, user_request.password)
+    return register_user(user_request.username, user_request.password)
 
 
 @router.post(
@@ -21,7 +21,7 @@ def register(user_request: UserRegisterRequest):
     response_model=UserLoginResponse,
     status_code=status.HTTP_200_OK,
     summary="Login a user",
-    description="Login a user with a valid name and password",
+    description="Login a user with a valid username and password",
 )
 def login(user_request: UserLoginRequest):
-    return login_user(user_request.name, user_request.password)
+    return login_user(user_request.username, user_request.password)
