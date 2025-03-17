@@ -6,3 +6,4 @@ db = client["chatbot"]
 
 users_collection = db["users"]
 chats_collection = db["chats"]
+token_blacklist = db["token_blacklist"]
