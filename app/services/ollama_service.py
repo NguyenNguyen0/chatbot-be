@@ -3,8 +3,8 @@ import ollama
 from fastapi import HTTPException, status
 
 from app.database import chats_collection
-from app.models.chat import ChatMessage, ChatResponse, ChatSection
-from app.utils import generate_id
+from app.models.chat import ChatMessage, ChatResponse, ChatSection, UserChatList
+from app.utils import generate_id, get_current_time
 from app.config import settings
 
 
@@ -37,17 +37,19 @@ def chat_with_ollama(
     if chat_message:
         chats_collection.update_one(
             {"user_id": user_id, "chat_id": chat_id},
-            {"$set": {"messages": messages_dict}},
+            {"$set": {"messages": messages_dict, "title": messages_dict[0]["content"]}},
         )
     else:
         chat_id = generate_id()
         chats_collection.insert_one(
-            {
-                "user_id": user_id,
-                "chat_id": chat_id,  # this will must generate a new chat_id
-                "messages": messages_dict,
-                "model": model,
-            }
+            ChatSection(
+                user_id=user_id,
+                chat_id=chat_id,
+                title=messages_dict[0]["content"],
+                created_at=get_current_time(),
+                model=model,
+                messages=messages_dict,
+            ).model_dump()
         )
 
     return ChatResponse(chat_id=str(chat_id), response=ai_response)
@@ -57,13 +59,22 @@ def get_chat_section(user_id: str, chat_id: str) -> ChatSection:
     chat_message = chats_collection.find_one({"user_id": user_id, "chat_id": chat_id})
 
     if chat_message:
-        return chat_message
+        return ChatSection.model_validate(chat_message)
     else:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chat section '{chat_id}' not found for user '{user_id}'")
 
 
-def get_user_chats(user_id: str):
-    chats = list(chats_collection.find({"user_id": user_id}, {"messages": 0}))
-    for chat in chats:
+def get_user_chats(user_id: str) -> UserChatList:
+    chats_in_db = list(chats_collection.find({"user_id": user_id}, {"messages": 0}).sort("created_at", -1))
+    chat_sections = []
+    for chat in chats_in_db:
         chat["_id"] = str(chat["_id"])
-    return chats
+
+        if not isinstance(chat["created_at"], str):
+            chat["created_at"] = chat["created_at"].strftime("%Y-%m-%dT%H:%M:%SZ")
+
+        chat["messages"] = [] # get only metadata, not messages
+
+        chat_sections.append(ChatSection.model_validate(chat))
+
+    return UserChatList(user_id=user_id, chats=chat_sections)
