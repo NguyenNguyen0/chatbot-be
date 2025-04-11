@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, status
 
-from app.services.ollama_service import chat_with_ollama, get_chat_section, get_user_chats
+from app.services.ollama_service import chat_with_ollama, get_chat_section, get_user_chats, delete_chat_section
 from app.models.chat import ChatRequest, ChatResponse, ChatSection, UserChatList
 from app.config import settings
 from app.middlewares.auth import get_current_user
@@ -48,3 +48,13 @@ def get_chat(chat_id: str, user: str = Depends(get_current_user)):
 )
 def list_chats(user=Depends(get_current_user)):
     return get_user_chats(user["user_id"])
+
+
+@router.delete(
+    "/{chat_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete chat section",
+    description="Delete a chat section by chat_id for the current user"
+)
+def delete_chat(chat_id: str, user=Depends(get_current_user)):
+    return delete_chat_section(user["user_id"], chat_id)

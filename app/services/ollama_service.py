@@ -1,4 +1,5 @@
 from typing import List
+import logging
 import ollama
 from fastapi import HTTPException, status
 
@@ -34,10 +35,12 @@ def chat_with_ollama(
 
     messages_dict.append({"role": "assistant", "content": ai_response})
 
+    chat_title = naming_chat_section(user_id, chat_id, messages_dict)
+
     if chat_message:
         chats_collection.update_one(
             {"user_id": user_id, "chat_id": chat_id},
-            {"$set": {"messages": messages_dict, "title": messages_dict[0]["content"]}},
+            {"$set": {"messages": messages_dict, "title": chat_title if chat_title else chat_message["title"]}},
         )
     else:
         chat_id = generate_id()
@@ -45,14 +48,37 @@ def chat_with_ollama(
             ChatSection(
                 user_id=user_id,
                 chat_id=chat_id,
-                title=messages_dict[0]["content"],
+                title=chat_title if chat_title else "Untitled",
                 created_at=get_current_time(),
                 model=model,
                 messages=messages_dict,
             ).model_dump()
         )
 
-    return ChatResponse(chat_id=str(chat_id), response=ai_response)
+    return ChatResponse(chat_id=str(chat_id), title=chat_title, response=ai_response)
+
+
+def naming_chat_section(user_id: str, chat_id: str, messages: List[ChatMessage]):
+    messages_dict = [
+        msg.model_dump() if isinstance(msg, ChatMessage) else msg for msg in messages
+    ]
+
+    if messages_dict[-1]['role'] != "assistant":
+        logging.error("Last message must from bot", exc_info=True)
+        return None
+    
+    messages_dict.append({"role": "user", "content": "give a shortest title for this conversation under 8 words"})
+
+    if len(messages_dict) > 5:
+        return None
+
+    try:
+        response = ollama.chat(model=settings.DEFAULT_MODEL, messages=messages_dict)
+        ai_response = response["message"]["content"]
+        return ai_response.replace("\"", "")
+    except Exception as e:
+        logging.error(f"Failed to generate title for chat_id={chat_id}, user_id={user_id}: {str(e)}", exc_info=True)
+        return None
 
 
 def get_chat_section(user_id: str, chat_id: str) -> ChatSection:
@@ -78,3 +104,12 @@ def get_user_chats(user_id: str) -> UserChatList:
         chat_sections.append(ChatSection.model_validate(chat))
 
     return UserChatList(user_id=user_id, chats=chat_sections)
+
+
+def delete_chat_section(user_id: str, chat_id: str) -> bool:
+    result = chats_collection.delete_one({"user_id": user_id, "chat_id": chat_id})
+
+    if result.deleted_count == 1:
+        return True
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Chat section '{chat_id}' not found for user '{user_id}'")
