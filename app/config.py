@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(..., env="SECRET_KEY")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 120
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     DEFAULT_MODEL: str = "llama3"
     MONGO_URI: str = Field(..., env="MONGO_URI")
     ORIGINS: str = os.getenv("ORIGINS", "*")

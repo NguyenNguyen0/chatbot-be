@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from bson import ObjectId
 
 from app.config import settings
-from app.models.user import UserLoginResponse, UserRegisterResponse, UserBasicInfo
+from app.models.user import UserLoginResponse, UserRegisterResponse, UserBasicInfo, UserRefreshTokenResponse
 from app.database import token_blacklist
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -20,11 +20,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
 
-def create_access_token(data: dict, expires_delta: timedelta = None):
+def create_access_token(data: dict, expires_delta: timedelta = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (
-        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
+    expire = datetime.now(timezone.utc) + expires_delta
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)):
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
@@ -51,8 +56,9 @@ def register_user(
     ).inserted_id
 
     token = create_access_token({"user_id": str(user_id)})
+    refresh_token = create_refresh_token({"user_id": str(user_id)})
     return UserRegisterResponse(
-        message="User registered successfully", access_token=token
+        message="User registered successfully", access_token=token, refresh_token=refresh_token
     )
 
 
@@ -68,19 +74,20 @@ def login_user(username: str, password: str) -> UserLoginResponse:
         )
 
     access_token = create_access_token({"user_id": str(user["_id"])})
-    return UserLoginResponse(user_id=str(user["_id"]), access_token=access_token)
+    refresh_token = create_refresh_token({"user_id": str(user["_id"])})
+    return UserLoginResponse(user_id=str(user["_id"]), access_token=access_token, refresh_token=refresh_token)
 
 
 def get_user(token: str) -> UserBasicInfo:
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
+
     if token_blacklist.find_one({"token": token}):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token has been invalidated",
-        )
-
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
 
     try:
@@ -125,24 +132,61 @@ def get_user(token: str) -> UserBasicInfo:
         )
 
 
-def logout_user(token: str):
+def logout_user(access_token: str, refresh_token: str):
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
         )
         exp_timestamp = payload.get("exp")
 
         # Add token to blacklist
         # TODO: implement by redis
-        token_blacklist.insert_one(
+        token_blacklist.insert_many([
             {
-                "token": token,
+                "token": access_token,
+                "expires_at": datetime.fromtimestamp(exp_timestamp, tz=timezone.utc),
+            },
+            {
+                "token": refresh_token,
                 "expires_at": datetime.fromtimestamp(exp_timestamp, tz=timezone.utc),
             }
-        )
+        ])
 
         return {"message": "User logged out successfully"}
     except jwt.InvalidTokenError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
         )
+
+
+def refresh_user_access_token(refresh_token: str) -> UserRefreshTokenResponse:
+    try:
+        if token_blacklist.find_one({"token": refresh_token}):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Refresh token has been invalidated",
+            )
+        
+        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("user_id")
+        
+        if not user_id:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED, 
+                detail="Invalid refresh token payload"
+            )
+            
+        user = users_collection.find_one({"_id": ObjectId(user_id)})
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail="User not found"
+            )
+        
+        new_access_token = create_access_token({"user_id": user_id})
+
+        return UserRefreshTokenResponse(access_token=new_access_token)
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")

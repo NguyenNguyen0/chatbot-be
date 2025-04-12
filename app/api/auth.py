@@ -1,9 +1,9 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, status, Depends, Body
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from app.services.auth_service import register_user, login_user, get_user, logout_user
-from app.models.user import UserRegisterRequest, UserLoginRequest, UserLoginResponse, UserRegisterResponse, UserBasicInfo
+from app.services.auth_service import register_user, login_user, get_user, logout_user, refresh_user_access_token
+from app.models.user import UserRegisterRequest, UserLoginRequest, UserLoginResponse, UserRegisterResponse, UserBasicInfo, UserRefreshTokenResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -47,5 +47,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
     summary="Logout a user",
     description="Logout a user"
 )
-def logout(credentials: HTTPAuthorizationCredentials = Depends(security)):
-    return logout_user(credentials.credentials)
+def logout(
+    access_token: str = Body(..., description="Access token", example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."),
+    refresh_token: str = Body(..., description="Refresh token", example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+):
+    return logout_user(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.post(
+    '/refresh',
+    status_code=status.HTTP_200_OK,
+    response_model=UserRefreshTokenResponse,
+    summary="Refresh access token",
+    description="Refresh the access token using the refresh token",
+)
+def refresh_token(
+    refresh_token: str = Body(..., description="Refresh token", example="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...")
+):
+    return refresh_user_access_token(refresh_token)
