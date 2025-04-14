@@ -4,8 +4,8 @@ import ollama
 from fastapi import HTTPException, status
 
 from app.database import chats_collection
-from app.models.chat import ChatMessage, ChatResponse, ChatSection, UserChatList
-from app.utils import generate_id, get_current_time
+from app.models.chat import BotModel, BotModelResponse, ChatMessage, ChatResponse, ChatSection, UserChatList
+from app.utils import generate_id, get_current_time, format_size
 from app.config import settings
 
 
@@ -79,6 +79,18 @@ def naming_chat_section(user_id: str, chat_id: str, messages: List[ChatMessage])
     except Exception as e:
         logging.error(f"Failed to generate title for chat_id={chat_id}, user_id={user_id}: {str(e)}", exc_info=True)
         return None
+
+
+def get_all_models() -> BotModelResponse:
+    try:
+        response = ollama.list()
+        models = [BotModel(name=model.model, size=format_size(model.size)) for model in response.models] 
+        return BotModelResponse(models=models, total=len(models))
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE, 
+            detail=f"Failed to fetch models from Ollama service: {str(e)}"
+        )
 
 
 def get_chat_section(user_id: str, chat_id: str) -> ChatSection:

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 
-from app.services.ollama_service import chat_with_ollama, get_chat_section, get_user_chats, delete_chat_section
-from app.models.chat import ChatRequest, ChatResponse, ChatSection, UserChatList
+from app.services.ollama_service import chat_with_ollama, get_chat_section, get_user_chats, delete_chat_section, get_all_models
+from app.models.chat import BotModelResponse, ChatRequest, ChatResponse, ChatSection, UserChatList
 from app.config import settings
 from app.middlewares.auth import get_current_user
 
@@ -9,6 +9,17 @@ router = APIRouter(
     prefix="/chat",
     tags=["Chat"]
 )
+
+
+@router.get(
+    '/models',
+    response_model=BotModelResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get all models",
+    description="Retrieve a list of all available models from the Ollama service"
+)
+def get_models():
+    return get_all_models()
 
 
 @router.post(

@@ -113,3 +113,32 @@ class UserChatList(BaseModel):
                 ],
             }
         }
+
+
+class BotModel(BaseModel):
+    name: str = Field(..., description="Model name", example="llama2")
+    size: str = Field(..., description="Model size", example="7B")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "name": "llama2",
+                "size": "7B",
+            }
+        }
+
+
+class BotModelResponse(BaseModel):
+    models: List[BotModel] = Field(..., description="List of available models")
+    total: int = Field(..., description="Total number of models", example=2)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "models": [
+                    {"name": "llama2", "size": "7B"},
+                    {"name": "llama3", "size": "13B"},
+                ],
+                "total": 2,
+            }
+        }
