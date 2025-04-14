@@ -142,3 +142,18 @@ class BotModelResponse(BaseModel):
                 "total": 2,
             }
         }
+
+
+class RenameResponse(BaseModel):
+    chat_id: str = Field(..., description="Chat ID", example="67890")
+    title: str = Field(..., description="New chat title", example="My New Chat")
+    success: bool = Field(..., description="Indicates if the rename was successful", example=True)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "chat_id": "67890",
+                "title": "My New Chat",
+                "success": True,
+            }
+        }
