@@ -42,11 +42,25 @@ def chat_with_ollama(
             detail=f"Failed to communicate with Ollama service: {str(e)}",
         )
 
-    chat_message = chats_collection.find_one({"user_id": user_id, "chat_id": chat_id})
-
     messages_dict.append({"role": "assistant", "content": ai_response})
-
+    chat_id = generate_id() if not chat_id and user_id else chat_id
     chat_title = naming_chat_section(user_id, chat_id, messages_dict)
+
+    if user_id:
+        save_chat_section(
+            messages_dict=messages_dict,
+            user_id=user_id,
+            chat_id=chat_id,
+            model=model,
+            chat_title=chat_title,
+        )
+
+
+    return ChatResponse(chat_id=str(chat_id), title=chat_title, response=ai_response)
+
+
+def save_chat_section(messages_dict: List[ChatMessage], user_id: str, chat_id: str, model: str, chat_title: str = None):
+    chat_message = chats_collection.find_one({"user_id": user_id, "chat_id": chat_id})
 
     if chat_message:
         chats_collection.update_one(
@@ -70,8 +84,6 @@ def chat_with_ollama(
                 messages=messages_dict,
             ).model_dump()
         )
-
-    return ChatResponse(chat_id=str(chat_id), title=chat_title, response=ai_response)
 
 
 def naming_chat_section(user_id: str, chat_id: str, messages: List[ChatMessage]):

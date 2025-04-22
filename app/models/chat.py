@@ -14,7 +14,7 @@ class ChatMessage(BaseModel):
 
 class ChatRequest(BaseModel):
     chat_id: str | None = Field(None, description="Chat ID", example="67890")
-    model: str = Field(
+    model: str | None = Field(
         default=settings.DEFAULT_MODEL,
         description="Model name",
         example=settings.DEFAULT_MODEL,

@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Body, Depends, status
 
 from app.services.ollama_service import (
@@ -17,7 +18,7 @@ from app.models.chat import (
     RenameResponse,
 )
 from app.config import settings
-from app.middlewares.auth import get_current_user
+from app.middlewares.auth import get_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -38,16 +39,18 @@ def get_models():
     response_model=ChatResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Chat with Ollama",
-    description="Chat with Ollama models to get AI responses",
+    description="Chat with Ollama models to get AI responses. If authenticated, the chat history will be saved to the user's account.",
 )
 def chat(
     chat_request: ChatRequest,
-    user=Depends(get_current_user),
+    user: Optional[dict] = Depends(get_current_user_optional),
 ):
     messages = chat_request.messages
     model = chat_request.model if chat_request.model else settings.DEFAULT_MODEL
     chat_id = chat_request.chat_id if chat_request.chat_id else None
-    return chat_with_ollama(user["user_id"], chat_id, messages, model)
+    
+    user_id = user["user_id"] if user else None
+    return chat_with_ollama(user_id, chat_id, messages, model)
 
 
 @router.get(

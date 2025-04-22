@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.middlewares.logger import LoggingMiddleware
 from app.api.auth import router as auth_router
 from app.api.chat import router as chat_router
 from app.config import settings
@@ -10,6 +11,8 @@ app = FastAPI(
     description="A simple chatbot API using FastAPI and Ollama",
     version="0.1.0",
 )
+
+app.add_middleware(LoggingMiddleware)
 
 # Configure CORS
 app.add_middleware(
