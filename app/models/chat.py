@@ -12,7 +12,7 @@ class ChatMessage(BaseModel):
         json_schema_extra = {"example": {"role": "user", "content": "Hello!"}}
 
 
-class ChatRequest(BaseModel):
+class ChatCompletionRequest(BaseModel):
     chat_id: str | None = Field(None, description="Chat ID", example="67890")
     model: str | None = Field(
         default=settings.DEFAULT_MODEL,
@@ -38,8 +38,8 @@ class ChatRequest(BaseModel):
         }
 
 
-class ChatResponse(BaseModel):
-    chat_id: str = Field(..., description="Chat ID", example="67890")
+class ChatCompletionResponse(BaseModel):
+    chat_id: str | None = Field(None, description="Chat ID", example="67890")
     title: str | None = Field(None, description="Chat title", example="My Chat")
     response: str = Field(
         ...,
@@ -57,7 +57,7 @@ class ChatResponse(BaseModel):
         }
 
 
-class ChatSection(BaseModel):
+class ChatConversation(BaseModel):
     user_id: str = Field(..., description="User ID", example="12345")
     chat_id: str = Field(..., description="Chat ID", example="67890")
     title: str = Field(..., description="Title of the chat", example="My Chat")
@@ -88,9 +88,9 @@ class ChatSection(BaseModel):
         }
 
 
-class UserChatList(BaseModel):
+class UserChatsCollection(BaseModel):
     user_id: str = Field(..., description="User ID", example="12345")
-    chats: List[ChatSection] = Field(..., description="List of chat sections")
+    chats: List[ChatConversation] = Field(..., description="List of chat sections")
 
     class Config:
         json_schema_extra = {
@@ -115,7 +115,7 @@ class UserChatList(BaseModel):
         }
 
 
-class BotModel(BaseModel):
+class AIModel(BaseModel):
     name: str = Field(..., description="Model name", example="llama2")
     size: str = Field(..., description="Model size", example="7B")
 
@@ -128,8 +128,8 @@ class BotModel(BaseModel):
         }
 
 
-class BotModelResponse(BaseModel):
-    models: List[BotModel] = Field(..., description="List of available models")
+class AvailableModelsResponse(BaseModel):
+    models: List[AIModel] = Field(..., description="List of available models")
     total: int = Field(..., description="Total number of models", example=2)
 
     class Config:
@@ -144,7 +144,7 @@ class BotModelResponse(BaseModel):
         }
 
 
-class RenameResponse(BaseModel):
+class ChatRenameResponse(BaseModel):
     chat_id: str = Field(..., description="Chat ID", example="67890")
     title: str = Field(..., description="New chat title", example="My New Chat")
     success: bool = Field(..., description="Indicates if the rename was successful", example=True)

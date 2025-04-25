@@ -2,12 +2,12 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 
 
-class UserInDB(BaseModel):
+class DBUser(BaseModel):
     user_id: str = Field(..., description="Unique identifier for the user", example="usr_12345abcde")
     username: str = Field(..., description="User's chosen username", example="johndoe")
     email: EmailStr = Field(..., description="User's email address", example="john.doe@example.com")
     password: str = Field(..., description="Hashed password - never returned to clients", example="$2b$12$...")
-    avatar: Optional[str] = Field(None, description="Base64 encoded profile image", example="data:image/jpeg;base64,...")  # noqa: F821
+    avatar: Optional[str] = Field(None, description="Base64 encoded profile image", example="data:image/jpeg;base64,...")
     is_active: bool = Field(True, description="Whether the user account is active")
     last_login: Optional[str] = Field(None, description="ISO timestamp of last login", example="2025-04-12T15:30:45Z")
     created_at: Optional[str] = Field(None, description="ISO timestamp of account creation", example="2025-04-01T12:00:00Z")
@@ -29,7 +29,7 @@ class UserInDB(BaseModel):
         }
 
 
-class UserBasicInfo(BaseModel):
+class UserProfile(BaseModel):
     user_id: str = Field(..., description="Unique identifier for the user", example="usr_12345abcde")
     username: str = Field(..., description="User's chosen username", example="johndoe")
     email: EmailStr = Field(..., description="User's email address", example="john.doe@example.com")
@@ -46,7 +46,7 @@ class UserBasicInfo(BaseModel):
         }
 
 
-class UserRegisterRequest(BaseModel):
+class RegistrationRequest(BaseModel):
     username: str = Field(..., description="Username for registration", example="abc")
     email: str = Field(
         ..., description="Email for registration", example="abc@gmail.com"
@@ -67,7 +67,7 @@ class UserRegisterRequest(BaseModel):
         }
 
 
-class UserLoginRequest(BaseModel):
+class LoginCredentials(BaseModel):
     username: str = Field(..., description="Username for login", example="abc")
     password: str = Field(..., description="User password", example="abc123")
 
@@ -80,7 +80,7 @@ class UserLoginRequest(BaseModel):
         }
 
 
-class UserLoginResponse(BaseModel):
+class AuthTokenResponse(BaseModel):
     user_id: str = Field(
         ..., 
         description="Unique identifier for the authenticated user", 
@@ -113,7 +113,7 @@ class UserLoginResponse(BaseModel):
         }
 
 
-class UserRegisterResponse(BaseModel):
+class RegistrationSuccessResponse(BaseModel):
     message: str = Field(
         "User registered successfully", 
         description="Status message indicating successful registration"
@@ -146,7 +146,7 @@ class UserRegisterResponse(BaseModel):
         }
 
 
-class UserRefreshTokenResponse(BaseModel):
+class TokenRefreshResponse(BaseModel):
     access_token: str = Field(
         ...,
         description="New JWT token for authenticating subsequent requests",

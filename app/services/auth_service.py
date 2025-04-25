@@ -6,7 +6,7 @@ from fastapi import HTTPException, status
 from bson import ObjectId
 
 from app.config import settings
-from app.models.user import UserLoginResponse, UserRegisterResponse, UserBasicInfo, UserRefreshTokenResponse
+from app.models.user import AuthTokenResponse, RegistrationSuccessResponse, UserProfile, TokenRefreshResponse
 from app.database import token_blacklist
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -36,7 +36,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta = timedelta(days=s
 
 def register_user(
     username: str, email: str, password: str, confirm_password: str
-) -> UserRegisterResponse:
+) -> RegistrationSuccessResponse:
     if password != confirm_password:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="Passwords do not match"
@@ -57,12 +57,12 @@ def register_user(
 
     token = create_access_token({"user_id": str(user_id)})
     refresh_token = create_refresh_token({"user_id": str(user_id)})
-    return UserRegisterResponse(
+    return RegistrationSuccessResponse(
         message="User registered successfully", access_token=token, refresh_token=refresh_token
     )
 
 
-def login_user(username: str, password: str) -> UserLoginResponse:
+def login_user(username: str, password: str) -> AuthTokenResponse:
     user = users_collection.find_one({"username": username})
     if not user:
         raise HTTPException(
@@ -75,10 +75,10 @@ def login_user(username: str, password: str) -> UserLoginResponse:
 
     access_token = create_access_token({"user_id": str(user["_id"])})
     refresh_token = create_refresh_token({"user_id": str(user["_id"])})
-    return UserLoginResponse(user_id=str(user["_id"]), access_token=access_token, refresh_token=refresh_token)
+    return AuthTokenResponse(user_id=str(user["_id"]), access_token=access_token, refresh_token=refresh_token)
 
 
-def get_user(token: str) -> UserBasicInfo:
+def get_user(token: str) -> UserProfile:
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
@@ -111,7 +111,7 @@ def get_user(token: str) -> UserBasicInfo:
         user.pop("password", None)
         user["_id"] = str(user["_id"])
 
-        return UserBasicInfo(
+        return UserProfile(
             user_id=user["_id"],
             username=user["username"],
             email=user["email"],
@@ -159,7 +159,7 @@ def logout_user(access_token: str, refresh_token: str):
         )
 
 
-def refresh_user_access_token(refresh_token: str) -> UserRefreshTokenResponse:
+def refresh_user_access_token(refresh_token: str) -> TokenRefreshResponse:
     try:
         if token_blacklist.find_one({"token": refresh_token}):
             raise HTTPException(
@@ -185,7 +185,7 @@ def refresh_user_access_token(refresh_token: str) -> UserRefreshTokenResponse:
         
         new_access_token = create_access_token({"user_id": user_id})
 
-        return UserRefreshTokenResponse(access_token=new_access_token)
+        return TokenRefreshResponse(access_token=new_access_token)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Refresh token expired")
     except jwt.JWTError:

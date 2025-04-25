@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.middlewares.logger import LoggingMiddleware
 from app.api.auth import router as auth_router
@@ -25,8 +26,9 @@ app.add_middleware(
 
 
 @app.get("/", tags=["Root"])
-def read_root():
-    return {"FastApi": "Hello World"}
+def read_root() -> RedirectResponse:
+    """Auto redirect to the API documentation."""
+    return RedirectResponse(url="/docs", status_code=303)
 
 
 app.include_router(chat_router)
