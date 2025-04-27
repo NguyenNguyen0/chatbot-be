@@ -8,7 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='\t%(asctime)s - %(name)s - %(levelname)s - %(message)s',
 )
 logger = logging.getLogger("api")
 
@@ -52,15 +52,15 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             except json.JSONDecodeError:
                 body = "Unable to parse request body"
                 
-        logger.info(f"REQUEST [{request_id}] - {request.method} {request.url.path}")
-        logger.info(f"HEADERS [{request_id}] - {headers}")
+        logger.info(f"🌐 REQUEST [{request_id}] - {request.method} {request.url.path}")
+        logger.info(f"📃 HEADERS [{request_id}] - {headers}")
         if body:
-            logger.info(f"BODY [{request_id}] - {body}")
+            logger.info(f"🅱️ BODY [{request_id}] - {body}")
             
     async def _log_response(self, response: Response, request_id: str, process_time: float):
         # Log response status and processing time
-        logger.info(f"RESPONSE [{request_id}] - Status: {response.status_code}, Time: {process_time:.4f}s")
+        logger.info(f"📨 RESPONSE [{request_id}] - Status: {response.status_code}, Time: {process_time:.4f}s")
         
         # Log response headers
         headers = dict(response.headers)
-        logger.info(f"RESPONSE HEADERS [{request_id}] - {headers}")
+        logger.info(f"📨 RESPONSE HEADERS [{request_id}] - {headers}")

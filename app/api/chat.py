@@ -20,18 +20,8 @@ from app.models.chat import (
 from app.config import settings
 from app.middlewares.auth import get_current_user, get_current_user_optional
 
+
 router = APIRouter(prefix="/chat", tags=["Chat"])
-
-
-@router.get(
-    "/models",
-    response_model=AvailableModelsResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Get all models",
-    description="Retrieve a list of all available models from the Ollama service",
-)
-def get_models():
-    return get_available_models()
 
 
 @router.post(
@@ -54,13 +44,24 @@ def chat(
 
 
 @router.get(
+    "/models",
+    response_model=AvailableModelsResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get all models",
+    description="Retrieve a list of all available models from the Ollama service",
+)
+def get_models(user: dict = Depends(get_current_user)):
+    return get_available_models()
+
+
+@router.get(
     "/{chat_id}",
     response_model=ChatConversation,
     status_code=status.HTTP_200_OK,
     summary="Get chat section",
     description="Get chat section by chat_id for the current user",
 )
-def get_chat(chat_id: str, user: str = Depends(get_current_user)):
+def get_chat(chat_id: str, user: dict = Depends(get_current_user)):
     return get_chat_conversation(user["user_id"], chat_id)
 
 
@@ -71,7 +72,7 @@ def get_chat(chat_id: str, user: str = Depends(get_current_user)):
     summary="Get all user chats",
     description="Retrieve a list of all chat sessions for the current user",
 )
-def list_chats(user=Depends(get_current_user)):
+def list_chats(user: dict = Depends(get_current_user)):
     return get_user_chats_collection(user["user_id"])
 
 
@@ -85,7 +86,7 @@ def list_chats(user=Depends(get_current_user)):
 def rename_chat(
     chat_id: str,
     chat_title: str = Body(..., description="New chat title", example="My New Chat"),
-    user=Depends(get_current_user),
+    user: dict = Depends(get_current_user),
 ):
     return rename_chat_conversation(user["user_id"], chat_id, chat_title)
 
@@ -96,5 +97,5 @@ def rename_chat(
     summary="Delete chat section",
     description="Delete a chat section by chat_id for the current user",
 )
-def delete_chat(chat_id: str, user=Depends(get_current_user)):
+def delete_chat(chat_id: str, user: dict = Depends(get_current_user)):
     return delete_chat_conversation(user["user_id"], chat_id)
