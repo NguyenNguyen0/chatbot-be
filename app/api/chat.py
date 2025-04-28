@@ -1,8 +1,11 @@
-from typing import Optional
-from fastapi import APIRouter, Body, Depends, status
+import asyncio
+import logging
+from typing import Annotated, Optional
+from fastapi import APIRouter, Body, Depends, WebSocket, WebSocketDisconnect, status
 
 from app.services.chat_service import (
     create_chat_completion,
+    create_chat_completion_stream,
     get_chat_conversation,
     get_user_chats_collection,
     delete_chat_conversation,
@@ -18,10 +21,83 @@ from app.models.chat import (
     ChatRenameResponse,
 )
 from app.config import settings
-from app.middlewares.auth import get_current_user, get_current_user_optional
+from app.middlewares.auth import get_current_user, get_current_user_optional, get_current_user_ws
 
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
+
+
+@router.websocket("/ws")
+async def chat_stream(
+    *,
+    websocket: WebSocket,
+    user: Annotated[Optional[dict], Depends(get_current_user_ws)]
+):
+    """
+    WebSocket endpoint for real-time chat streaming with Ollama AI.
+
+    This endpoint allows clients to establish a WebSocket connection for interactive chat sessions.
+    The client may optionally authenticate by providing a JWT token (as a query parameter or header).
+    Once connected, the server will send a `{"status": "connected"}` message.
+
+    **Receiving Data:**
+    - The server expects JSON messages from the client with at least a `command` field.
+    - Supported commands:
+        - `"chat"` (default): Start a new AI response generation. The message should include:
+            - `messages`: List of chat messages (history + new user message).
+            - `model` (optional): Model name to use.
+            - `chat_id` (optional): Chat session identifier.
+        - `"interrupt"`: Interrupt the current AI response generation.
+
+    **Response Data:**
+    - On connection: `{"status": "connected"}`
+    - On `"chat"` command:
+        - Streaming responses: `{"status": "streaming", "chunk": ...}` (multiple times)
+        - On completion: `{"status": "complete", "message": ...}`
+        - On error: `{"status": "error", "message": ...}`
+    - On `"interrupt"` command:
+        - `{"status": "interrupted", "content": ...}`
+
+    The server handles only one active generation task per connection. If interrupted, the current task is cancelled.
+    On disconnect, any running generation task is also cancelled.
+    """
+    await websocket.accept()
+    user_id = user.get("user_id") if user else None
+    logging.info(f"WebSocket connected for user: {user_id}")
+    current_generation_task = None
+
+    try:
+        await websocket.send_json({"status": "connected", "message": "WebSocket connected for user: " + str(user_id)})
+
+        while True:
+            data = await websocket.receive_json()
+            command = data.get("command", "chat")
+
+            logging.info(f"Received command: {command} {data}")
+            
+            if command == "interrupt":
+                if current_generation_task and not current_generation_task.done():
+                    current_generation_task.cancel()
+                    await websocket.send_json({
+                        "status": "interrupted",
+                        "content": "Response generation interrupted"
+                    })
+                continue
+    
+            messages = data.get("messages", [])
+            model = data.get("model", settings.DEFAULT_MODEL)
+            chat_id = data.get("chat_id")
+            
+            current_generation_task = asyncio.create_task(
+                create_chat_completion_stream(websocket, user_id, chat_id, messages, model)
+            )
+            
+    except WebSocketDisconnect:
+        logging.info("WebSocket disconnected")
+        if current_generation_task and not current_generation_task.done():
+            current_generation_task.cancel()
+    except Exception as e:
+        await websocket.send_json({"status": "error", "message": str(e)})
 
 
 @router.post(

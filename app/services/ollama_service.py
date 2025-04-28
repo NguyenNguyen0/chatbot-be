@@ -1,10 +1,36 @@
-from typing import List, Dict, Any
 import logging
+from typing import List, Dict, Any
 import ollama
 from fastapi import HTTPException, status
 
 from app.models.chat import ChatMessage
 from app.config import settings
+
+
+def stream_chat_to_ollama(
+    messages: List[ChatMessage],
+    model: str = settings.DEFAULT_MODEL
+):
+    messages_dict = [
+        msg.model_dump() if isinstance(msg, ChatMessage) else msg for msg in messages
+    ]
+
+    try:
+        response_parts = []
+        for chunk in ollama.chat(model=model, messages=messages_dict, stream=True):
+            content = chunk.get('message', {}).get('content', '')
+            if content:
+                response_parts.append(content)
+
+                if len(response_parts) >= 3:  # Gộp lại rồi gửi để tiết kiệm
+                    yield ''.join(response_parts)
+                    response_parts.clear()
+
+        if response_parts:
+            yield ''.join(response_parts)
+
+    except Exception as e:
+        yield f"ERROR: {str(e)}"  # Send error message to the client
 
 
 def send_chat_to_ollama(messages: List[ChatMessage], model: str = settings.DEFAULT_MODEL) -> str:

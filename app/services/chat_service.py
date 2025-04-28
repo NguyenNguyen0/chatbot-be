@@ -1,5 +1,9 @@
-from typing import List
-from fastapi import HTTPException, status
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import logging
+
+from typing import AsyncGenerator, List
+from fastapi import HTTPException, WebSocket, status
 
 from app.database import chats_collection
 from app.models.chat import (
@@ -8,7 +12,86 @@ from app.models.chat import (
 )
 from app.utils import generate_id, get_current_time, format_size
 from app.config import settings
-from app.services.ollama_service import send_chat_to_ollama, generate_chat_title, get_all_ollama_models
+from app.services.ollama_service import send_chat_to_ollama, generate_chat_title, get_all_ollama_models, stream_chat_to_ollama
+
+
+executor = ThreadPoolExecutor(max_workers=1)
+
+
+async def create_chat_completion_stream(
+    websocket: WebSocket,
+    user_id: str,
+    chat_id: str,
+    messages: List[ChatMessage],
+    model: str = settings.DEFAULT_MODEL,
+    interrupt_event: asyncio.Event = None,
+) -> AsyncGenerator[str, None]:
+    messages_dict = [msg.model_dump() if isinstance(msg, ChatMessage) else msg for msg in messages]
+    
+    if messages_dict[-1]["role"] != "user":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Last message must be from the user",
+        )
+    
+    await websocket.send_json({"status": "start"})
+
+    loop = asyncio.get_running_loop()
+
+    async def async_generator_from_thread(loop, thread_pool, func):
+        """Convert a regular generator function to be used asynchronously."""
+        gen = await loop.run_in_executor(thread_pool, func)
+        for item in gen:
+            yield item
+
+    full_response = ""
+    try:
+        response_stream = async_generator_from_thread(loop, executor, lambda: stream_chat_to_ollama(messages_dict, model))
+        async for chunk in response_stream:
+            try:
+                if isinstance(chunk, str) and chunk.startswith("ERROR:"):
+                    await websocket.send_json({
+                        "status": "error",
+                        "message": chunk[6:]  # Remove "ERROR: " prefix
+                    })
+                    break
+                    
+                await websocket.send_json({
+                    "status": "streaming",
+                    "chunk": chunk
+                })  
+
+                full_response += chunk
+                
+                # Small pause to allow for cancellation
+                await asyncio.sleep(0.01)
+            except asyncio.CancelledError:
+                raise
+
+        await websocket.send_json({
+            "status": "complete",
+            "message": full_response
+        })
+    except InterruptedError:
+        logging.info("Chat completion stream was interrupted")
+        await websocket.send_json({
+            "status": "interrupted",
+            "message": "Generation was cancelled"
+        })
+    except Exception as e:
+        logging.error(f"Error in stream_chat_to_ollama: {str(e)}")
+        await websocket.send_json({
+            "status": "error",
+            "message": f"Error generating response: {str(e)}"
+        })
+    finally:
+        if user_id and not (interrupt_event and interrupt_event.is_set()):
+            logging.info("Saving chat conversation for user")
+            
+            messages_dict.append({"role": "assistant", "content": full_response})
+            chat_id = generate_id() if not chat_id and user_id else chat_id
+            chat_title = generate_chat_title(messages_dict)
+            save_chat_conversation(messages_dict, user_id, chat_id, model, chat_title)
 
 
 def create_chat_completion(user_id: str, chat_id: str, messages: List[ChatMessage], model: str = settings.DEFAULT_MODEL) -> ChatCompletionResponse:

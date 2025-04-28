@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, WebSocket
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from app.config import settings
@@ -44,6 +44,28 @@ def get_current_user_optional(
         token = credentials.credentials
         payload = jwt.decode(
             token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+        )
+        return payload
+    except (jwt.PyJWTError, AttributeError):
+        return None
+
+
+async def get_current_user_ws(websocket: WebSocket):
+    auth_token = websocket.query_params.get("access_token")
+    # Or from headers (e.g., for custom protocols)
+    if not auth_token:
+        auth_token = websocket.headers.get("authorization")
+        if auth_token and auth_token.lower().startswith("bearer "):
+            auth_token = auth_token[7:]
+
+    if not auth_token:
+        return None
+
+    try:
+        payload = jwt.decode(
+            auth_token,
+            settings.SECRET_KEY,
+            algorithms=[settings.ALGORITHM]
         )
         return payload
     except (jwt.PyJWTError, AttributeError):

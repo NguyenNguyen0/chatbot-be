@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot FastAPI backend</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 700px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+            padding: 32px 40px 24px 40px;
+        }
+        h1 {
+            color: #2d3a4a;
+            margin-bottom: 8px;
+        }
+        p {
+            color: #4a5568;
+            font-size: 1.1em;
+        }
+        ul {
+            margin: 18px 0 18px 20px;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 8px;
+            font-size: 1.05em;
+        }
+        a {
+            color: #2563eb;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        a:hover {
+            color: #1e40af;
+            text-decoration: underline;
+        }
+        .section-title {
+            margin-top: 28px;
+            color: #1e293b;
+            font-size: 1.15em;
+            font-weight: 600;
+        }
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+        .info-table th, .info-table td {
+            border: 1px solid #e2e8f0;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .info-table th {
+            background: #f1f5f9;
+            color: #334155;
+        }
+        .footer {
+            margin-top: 32px;
+            color: #64748b;
+            font-size: 0.98em;
+            text-align: center;
+        }
+        code {
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.98em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chatbot FastAPI Backend</h1>
+        <p>
+            This backend powers a chatbot application using <b>FastAPI</b> and <b>MongoDB</b>, with <b>Ollama</b> for local LLM integration.
+        </p>
+        <ul>
+            <li><a href="/docs">Go to Swagger UI (API docs)</a></li>
+            <li><a href="/redoc">Go to ReDoc (API docs)</a></li>
+            <li><a href="/ws">Test WebSocket Response</a></li>
+        </ul>
+
+        <div class="section-title">Key Features</div>
+        <ul>
+            <li>🔒 User authentication (JWT-based)</li>
+            <li>💬 Chat with local LLMs (Ollama)</li>
+            <li>🗂️ Conversation history stored in MongoDB</li>
+            <li>🧑 User management and profile</li>
+            <li>⚡ Real-time streaming via WebSocket</li>
+        </ul>
+
+        <div class="section-title">API Endpoints Overview</div>
+        <table class="info-table">
+            <tr>
+                <th>Endpoint</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>POST /auth/register</code></td>
+                <td>User registration</td>
+            </tr>
+            <tr>
+                <td><code>POST /auth/login</code></td>
+                <td>User login (get JWT)</td>
+            </tr>
+            <tr>
+                <td><code>GET /auth/me</code></td>
+                <td>Get current user info</td>
+            </tr>
+            <tr>
+                <td><code>POST /chat/</code></td>
+                <td>Chat with Ollama (sync)</td>
+            </tr>
+            <tr>
+                <td><code>GET /chat/ws</code></td>
+                <td>WebSocket streaming chat</td>
+            </tr>
+            <tr>
+                <td><code>GET /chat/</code></td>
+                <td>List user chat sessions</td>
+            </tr>
+        </table>
+
+        <div class="section-title">Tech Stack</div>
+        <ul>
+            <li><b>FastAPI</b> – Python web framework</li>
+            <li><b>MongoDB</b> – NoSQL database</li>
+            <li><b>Ollama</b> – Local LLM serving</li>
+        </ul>
+
+        <div class="section-title">Quick Start</div>
+        <ol>
+            <li>Clone the repo and install dependencies (<code>pip install -r requirements.txt</code>).</li>
+            <li>Set up your <code>.env</code> file (see <b>README.md</b>).</li>
+            <li>Start MongoDB and Ollama locally.</li>
+            <li>Run: <code>uvicorn app.main:app --reload</code></li>
+            <li>Open <a href="/">this page</a> or the API docs.</li>
+        </ol>
+
+        <div class="footer">
+            &copy; 2025 Nguyen Nguyen &mdash; <a href="https://github.com/NguyenNguyen0/chatbot-be" target="_blank">GitHub</a>
+        </div>
+    </div>
+</body>
+</html>

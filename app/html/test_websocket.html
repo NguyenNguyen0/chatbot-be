@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test</title>
+    <!-- CSS remains unchanged -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+
+        #chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 500px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+
+        .ai-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+
+        .status-message {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            margin: 5px 0;
+        }
+
+        .error-message {
+            text-align: center;
+            color: #d9534f;
+            font-style: italic;
+            margin: 5px 0;
+        }
+
+        #input-area {
+            display: flex;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #ddd;
+        }
+
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            margin-right: 10px;
+        }
+
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #3367d6;
+        }
+
+        button:disabled {
+            background-color: #b6b6b6;
+            cursor: not-allowed;
+        }
+
+        #stop-button {
+            background-color: #d9534f;
+            margin-left: 5px;
+        }
+
+        #stop-button:hover {
+            background-color: #c9302c;
+        }
+
+        #connection-status {
+            text-align: center;
+            margin-bottom: 10px;
+            font-style: italic;
+            color: #666;
+        }
+
+        #access-token {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            margin-bottom: 10px;
+        }
+
+        #user-info {
+            display: block;
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 20px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Test WebSocket Streaming Response</h1>
+
+    <div>
+        <input type="text" id="access-token" placeholder="Enter access token">
+        <small id="user-info"></small>
+        <button id="set-token-button">Set user token</button>
+    </div>
+
+    <div id="connection-status">Connecting...</div>
+
+    <div id="chat-container">
+        <div id="messages"></div>
+
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Type your message..." disabled>
+            <button id="send-button" disabled>Send</button>
+            <button id="stop-button" disabled>Stop</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const messagesContainer = document.getElementById('messages');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const stopButton = document.getElementById('stop-button');
+        const connectionStatus = document.getElementById('connection-status');
+        const accessTokenInput = document.getElementById('access-token');
+        const userInfo = document.getElementById('user-info');
+        const setTokenButton = document.getElementById('set-token-button');
+
+        let chatSocket = null;
+        let messages = [];
+        let currentAIMessage = null;
+        let currentToken = '';
+
+        // Helper: decode JWT payload
+        function authMe(token) {
+            try {
+                fetch('http://127.0.0.1:8000/auth/me', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                }).then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('Failed to fetch user info');
+                    }
+                }).then(data => {
+                    if (data && data.user_id) {
+                        localStorage.setItem('access_token', token);
+                        userInfo.textContent = `User: ${data.user_id}-${data.username}`;
+                    } else {
+                        userInfo.textContent = 'Invalid token';
+                    }
+                }).catch(error => {
+                    console.error('Error fetching user info:', error);
+                    userInfo.textContent = `Error fetching user info: ${error.message}`;
+                });
+            } catch (e) {
+                userInfo.textContent = 'Invalid token';
+            }
+        }
+
+        // Show user info from token
+        function showUserInfo(token) {
+            if (!token) {
+                userInfo.textContent = '';
+            }
+            const payload = authMe(token ? token : localStorage.getItem('access_token'));
+            if (payload && payload.user_id) {
+                userInfo.textContent = `User: ${payload.user_id}`;
+            } else if (payload) {
+                userInfo.textContent = `User info: ${JSON.stringify(payload)}`;
+            } else {
+                userInfo.textContent = 'Invalid token';
+            }
+        }
+
+        // Connect to WebSocket with token as subprotocol
+        function connectWebSocket(token) {
+            let wsUrl = 'ws://127.0.0.1:8000/chat/ws';
+            if (token) {
+                wsUrl += `?access_token=${encodeURIComponent(token)}`;
+            }
+            chatSocket = new WebSocket(wsUrl);
+            messages = [];
+            currentAIMessage = null;
+
+            chatSocket.onopen = () => {
+                connectionStatus.textContent = 'Connected to Ollama AI';
+                userInput.disabled = false;
+                sendButton.disabled = false;
+            };
+
+            chatSocket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                console.log('Received:', data);
+                switch (data.status) {
+                    case 'connected':
+                        connectionStatus.textContent = 'Connected to Ollama AI';
+                        break;
+                    case 'start':
+                        stopButton.disabled = false;
+                        currentAIMessage = document.createElement('div');
+                        currentAIMessage.className = 'message ai-message';
+                        messagesContainer.appendChild(currentAIMessage);
+
+                        const startDiv = document.createElement('div');
+                        startDiv.className = 'status-message';
+                        startDiv.textContent = 'Generating response...';
+                        messagesContainer.appendChild(startDiv);
+                        break;
+                    case 'streaming':
+                        if (currentAIMessage) {
+                            currentAIMessage.textContent += data.chunk;
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                        break;
+                    case 'complete':
+                        stopButton.disabled = true;
+                        if (data.message) {
+                            messages.push({ role: "assistant", content: data.message });
+                        }
+                        const completeDiv = document.createElement('div');
+                        completeDiv.className = 'status-message';
+                        completeDiv.textContent = 'Response complete';
+                        messagesContainer.appendChild(completeDiv);
+                        currentAIMessage = null;
+                        break;
+                    case 'interrupted':
+                        stopButton.disabled = true;
+                        const interruptDiv = document.createElement('div');
+                        interruptDiv.className = 'status-message';
+                        interruptDiv.textContent = data.message || 'Response interrupted';
+                        messagesContainer.appendChild(interruptDiv);
+                        if (currentAIMessage) {
+                            messages.push({ role: "assistant", content: data.message });
+                        }
+                        currentAIMessage = null;
+                        break;
+                    case 'error':
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'error-message';
+                        errorDiv.textContent = `Error: ${data.message}`;
+                        messagesContainer.appendChild(errorDiv);
+                        stopButton.disabled = true;
+                        currentAIMessage = null;
+                        break;
+                }
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            };
+
+            chatSocket.onclose = () => {
+                connectionStatus.textContent = 'Disconnected. Please refresh the page.';
+                userInput.disabled = true;
+                sendButton.disabled = true;
+                stopButton.disabled = true;
+            };
+        }
+
+        // Send a message
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.className = 'message user-message';
+            userMessageDiv.textContent = message;
+            messagesContainer.appendChild(userMessageDiv);
+
+            messages.push({ role: "user", content: message });
+
+            chatSocket.send(JSON.stringify({
+                command: "chat",
+                messages: messages
+            }));
+
+            userInput.value = '';
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Interrupt generation
+        function interruptGeneration() {
+            chatSocket.send(JSON.stringify({
+                command: "interrupt"
+            }));
+        }
+
+        // Set token and reconnect
+        setTokenButton.addEventListener('click', () => {
+            const token = accessTokenInput.value.trim();
+            currentToken = token;
+            showUserInfo(token);
+            if (chatSocket) {
+                chatSocket.close();
+            }
+            connectWebSocket(token);
+        });
+
+        // Auto-connect on page load with any token present
+        window.addEventListener('DOMContentLoaded', () => {
+            const token = accessTokenInput.value.trim();
+            currentToken = token || localStorage.getItem('access_token');
+            showUserInfo(token);
+            connectWebSocket(token);
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+        stopButton.addEventListener('click', interruptGeneration);
+
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+
+</html>
