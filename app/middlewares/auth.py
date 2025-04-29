@@ -51,7 +51,8 @@ def get_current_user_optional(
 
 
 async def get_current_user_ws(websocket: WebSocket):
-    auth_token = websocket.query_params.get("access_token")
+    print("\t ⭐ WebSocket query params:", websocket.query_params)
+    auth_token = websocket.query_params.get("token")
     # Or from headers (e.g., for custom protocols)
     if not auth_token:
         auth_token = websocket.headers.get("authorization")

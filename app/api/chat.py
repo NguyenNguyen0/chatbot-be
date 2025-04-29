@@ -88,6 +88,8 @@ async def chat_stream(
             model = data.get("model", settings.DEFAULT_MODEL)
             chat_id = data.get("chat_id")
             
+            logging.info(f"Starting chat: {chat_id} - {user_id} - {model} - {messages}")
+
             current_generation_task = asyncio.create_task(
                 create_chat_completion_stream(websocket, user_id, chat_id, messages, model)
             )
