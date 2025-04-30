@@ -1,10 +1,10 @@
-from fastapi import FastAPI, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.middlewares.logger import LoggingMiddleware
-from app.api.auth import router as auth_router
-from app.api.chat import router as chat_router
+from app.api.v1.auth import router as auth_router
+from app.api.v1.chat import router as chat_router
 from app.config import settings
 
 app = FastAPI(
@@ -34,7 +34,7 @@ def read_root() -> RedirectResponse:
 
 
 @app.get("/ws", tags=["Test"])
-def test_ws():
+def test_websocket():
     """Serve the WebSocket UI test page."""
     with open("app/html/test_websocket.html", encoding="utf-8") as f:
         html_content = f.read()

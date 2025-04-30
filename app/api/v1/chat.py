@@ -24,7 +24,7 @@ from app.config import settings
 from app.middlewares.auth import get_current_user, get_current_user_optional, get_current_user_ws
 
 
-router = APIRouter(prefix="/chat", tags=["Chat"])
+router = APIRouter(prefix="/api/v1/chat", tags=["Chat"])
 
 
 @router.websocket("/ws")
@@ -85,7 +85,7 @@ async def chat_stream(
                 continue
     
             messages = data.get("messages", [])
-            model = data.get("model", settings.DEFAULT_MODEL)
+            model = data.get("model") if data.get("model") else settings.DEFAULT_MODEL
             chat_id = data.get("chat_id")
             
             logging.info(f"Starting chat: {chat_id} - {user_id} - {model} - {messages}")

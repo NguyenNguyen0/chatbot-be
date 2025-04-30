@@ -224,7 +224,7 @@
 
         // Connect to WebSocket with token as subprotocol
         function connectWebSocket(token) {
-            let wsUrl = 'ws://127.0.0.1:8000/chat/ws';
+            let wsUrl = 'ws://127.0.0.1:8000/api/v1/chat/ws';
             if (token) {
                 wsUrl += `?token=${encodeURIComponent(token)}`;
             }

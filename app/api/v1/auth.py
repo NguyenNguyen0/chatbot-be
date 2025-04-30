@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.services.auth_service import register_user, login_user, get_user, logout_user, refresh_user_access_token
 from app.models.user import RegistrationRequest, LoginCredentials, AuthTokenResponse, RegistrationSuccessResponse, UserProfile, TokenRefreshResponse
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter(prefix="/api/v1/auth", tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 security = HTTPBearer()
 
